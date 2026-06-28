@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Global Diabetes Burden Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --ink:#121821; --muted:#5b6675; --faint:#8b95a3;
+  --paper:#f5f6f8; --card:#ffffff; --line:#e3e7ed; --line2:#eef1f5;
+  --navy:#0b2545; --blue:#1a57a0; --coral:#d8572a; --teal:#2a9d8f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;-webkit-font-smoothing:antialiased}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+header{background:var(--navy);color:#fff;padding:28px 0 0}
+.brandrow{display:flex;align-items:center;gap:14px}
+.mark{width:34px;height:34px;border:4px solid #4d9de0;border-radius:50%;flex:none}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9fb6d4}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:30px;line-height:1.1;margin:10px 0 6px;letter-spacing:-.01em}
+.sub{color:#c4d2e4;font-size:15px;max-width:700px;margin:0 0 4px}
+.src{color:#7e93b3;font-size:12.5px;margin:6px 0 22px;max-width:760px}
+nav{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.12)}
+.tab{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:14px;color:#9fb6d4;background:none;border:none;padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:#fff}
+.tab.active{color:#fff;border-bottom-color:var(--coral)}
+.tab .n{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5d7290;margin-right:7px;opacity:.7}
+
+main{padding:32px 0 56px}
+.panel{display:none;animation:fade .35s ease}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.lead{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:21px;letter-spacing:-.01em;margin:0 0 4px}
+.deck{color:var(--muted);font-size:15px;margin:0 0 12px;max-width:740px}
+.selnote{font-size:12.5px;color:var(--faint);margin:0 0 22px;max-width:740px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi .lab{font-size:12px;color:var(--muted);margin-bottom:8px}
+.kpi .val{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:28px;line-height:1}
+.kpi .note{font-size:11.5px;color:var(--faint);margin-top:6px}
+.kpi.alert .val{color:var(--coral)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:20px}
+.card h3{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;margin:0 0 2px}
+.card .cap{font-size:12.5px;color:var(--muted);margin:0 0 16px}
+.chartbox{position:relative;width:100%}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.seg{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer}
+.seg:hover{border-color:#c2ccd8}
+.seg.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;background:#fff;color:var(--muted)}
+.pill .dot{width:9px;height:9px;border-radius:50%}
+.pill.off{opacity:.4}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+table.cmp{width:100%;border-collapse:collapse;font-size:13.5px}
+table.cmp th,table.cmp td{text-align:right;padding:10px 8px;border-bottom:1px solid var(--line2)}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+table.cmp thead th{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:500}
+table.cmp td.country{font-weight:500}
+table.cmp td .cdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:middle}
+table.cmp tr.dim{opacity:.32}
+.num{font-family:'IBM Plex Mono',monospace}
+
+.insights{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ins{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;border-left:3px solid var(--blue)}
+.ins.hot{border-left-color:var(--coral)}
+.ins.synth{grid-column:1 / -1;border-left-color:#185fa5;background:#fbfcfd}
+.ins .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.ins h4{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;margin:0 0 8px;letter-spacing:-.01em}
+.ins p{margin:0;font-size:14px;color:#36404e}
+
+.about{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.block .blab{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+.block p{margin:0;font-size:14px;color:#36404e}
+.block ul{margin:0;padding-left:18px;font-size:14px;color:#36404e}
+.block li{margin-bottom:5px}
+.block.wide{grid-column:1 / -1;border-left:3px solid var(--coral)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--muted)}
+
+footer{border-top:1px solid var(--line);padding:22px 0;color:var(--faint);font-size:12px}
+footer b{color:var(--muted);font-weight:500}
+
+@media(max-width:720px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .insights{grid-template-columns:1fr}
+  .about{grid-template-columns:1fr}
+  h1{font-size:24px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brandrow">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="eyebrow">Analytical demonstration </div>
+    </div>
+    <h1>Global Diabetes Burden Explorer</h1>
+    <p class="sub">Independent exploratory dashboard demonstrating descriptive epidemiological analysis of diabetes burden estimates across seven countries.</p>
+    <p class="src">Visualisation of published estimates from the IDF Diabetes Atlas (11th edition, 2025).</p>
+    <nav id="nav">
+      <button class="tab active" data-t="overview"><span class="n">01</span>Overview</button>
+      <button class="tab" data-t="trajectory"><span class="n">02</span>Trajectory</button>
+      <button class="tab" data-t="gaps"><span class="n">03</span>Detection &amp; spending</button>
+      <button class="tab" data-t="compare"><span class="n">04</span>Country comparison</button>
+      <button class="tab" data-t="insights"><span class="n">05</span>Findings</button>
+      <button class="tab" data-t="about"><span class="n">06</span>About</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="panel active" id="overview">
+    <p class="lead">The burden at a glance</p>
+    <p class="deck">In 2024 an estimated 589 million adults worldwide were living with diabetes, about 1 in 9. Among the seven compared countries, Pakistan stands well apart in terms of prevalence.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="lab">World prevalence, 2024</div><div class="val">11.1%</div><div class="note">~1 in 9 adults (20–79)</div></div>
+      <div class="kpi alert"><div class="lab">Highest: Pakistan</div><div class="val">31.4%</div><div class="note">~1 in 3 adults</div></div>
+      <div class="kpi"><div class="lab">Growth by 2050, world</div><div class="val">+46%</div><div class="note">to ~853 million</div></div>
+      <div class="kpi alert"><div class="lab">Pakistan growth to 2050</div><div class="val">+103%</div><div class="note">34.5M → 70.2M people</div></div>
+    </div>
+    <div class="card">
+      <h3>Age-standardised diabetes prevalence (adults 20–79 y), 2024</h3>
+      <div class="chartbox" style="height:330px"><canvas id="cPrev" role="img" aria-label="Bar chart of 2024 diabetes prevalence by country, Pakistan highest at 31.4 percent."></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Estimated number of adults (20–79 y) living with diabetes, 2024</h3>
+      <div class="chartbox" style="height:300px"><canvas id="cPeople" role="img" aria-label="Bar chart of number of people with diabetes by country in 2024."></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel" id="trajectory">
+    <p class="lead">Fifty years of trajectory</p>
+    <p class="deck">The Atlas reconstructs estimates back to 2000 and projects forward to 2050. Switch the metric to see how prevalence and headcount diverge.</p>
+    <div class="controls" id="trajCtrl">
+      <button class="seg on" data-m="people">Number of adults</button>
+      <button class="seg" data-m="prev">Prevalence (%)</button>
+    </div>
+    <div class="card">
+      <h3 id="trajTitle">Estimated number of adults (20–79 y) living with diabetes, 2000–2050</h3>
+      <p class="cap" id="trajCap">Counts in millions. 2050 figures are projections.</p>
+      <div class="legend" id="trajLegend"></div>
+      <div class="chartbox" style="height:360px"><canvas id="cTraj" role="img" aria-label="Line chart of diabetes trajectory from 2000 to 2050 by country."></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel" id="gaps">
+    <p class="lead">Detection and spending don't line up</p>
+    <p class="deck">A common assumption is that higher spending closes the detection gap. Across these seven countries it doesn't.</p>
+    <div class="card">
+      <h3>Undiagnosed proportion vs health expenditure per person, 2024</h3>
+      <p class="cap">Each bubble is a country; bubble size reflects the estimated number of adults living with diabetes. Spending is on a log scale (USD per person with diabetes).</p>
+      <div class="legend" id="gapsLegend"></div>
+      <div class="chartbox" style="height:380px"><canvas id="cGaps" role="img" aria-label="Scatter plot of undiagnosed share versus health spending per person with diabetes."></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel" id="compare">
+    <p class="lead">Country comparison</p>
+    <p class="deck">Toggle countries to compare them across the four indicators that matter most for an epidemiology brief.</p>
+    <div class="controls" id="cmpPills"></div>
+    <div class="card">
+      <h3>Side by side</h3>
+      <p class="cap">Prevalence and the diabetes-attributable death share are age-standardised; expenditure is per person living with diabetes.</p>
+      <div style="overflow-x:auto">
+        <table class="cmp" id="cmpTable">
+          <thead><tr>
+            <th>Country</th>
+            <th>Prevalence</th>
+            <th>People (M)</th>
+            <th>Undiagnosed</th>
+            <th>Deaths (diab.)</th>
+            <th>Death share</th>
+            <th>Spend / person</th>
+          </tr></thead>
+          <tbody id="cmpBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Prevalence vs diabetes-attributable death share (age-standardised), 2024</h3>
+      <p class="cap">Two age-standardised measures. Selected countries only.</p>
+      <div class="chartbox" style="height:320px"><canvas id="cCmp" role="img" aria-label="Grouped bar chart comparing prevalence and death share for selected countries."></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel" id="insights">
+    <p class="lead">Findings</p>
+    <p class="deck">Five evidence-based observations drawn from the published estimates above. See <a href="#" onclick="goTab('about');return false;" style="color:var(--blue)">About</a> for data sources and limitations.</p>
+    <div class="insights">
+      <div class="ins hot">
+        <div class="tag">Finding 01 · high prevalence</div>
+        <h4>Highest age-standardised prevalence in the set</h4>
+        <p>Pakistan exhibited the highest age-standardised diabetes prevalence among the selected countries (31.4% in 2024), substantially exceeding the next-highest estimate (United States, 13.7%) and approximately six-fold the lowest (Austria, 5.4%). The estimate is projected to reach 34.2% by 2050.</p>
+      </div>
+      <div class="ins hot">
+        <div class="tag">Finding 02 · rapid projected increase</div>
+        <h4>Steepest projected growth in absolute burden</h4>
+        <p>The estimated number of adults living with diabetes in Pakistan is projected to rise from 34.5M (2024) to 70.2M (2050) which is a increase of roughly 103%, the largest in the set (India +75%, China +14%, United States +12%; Germany and Austria approximately stable).</p>
+      </div>
+      <div class="ins">
+        <div class="tag">Finding 03 · detection gap</div>
+        <h4>Undiagnosed share is wide and not explained by spending</h4>
+        <p>The estimated undiagnosed proportion ranged from 49.7% (China) and 43.0% (India) to 20.4% (Germany). Belgium's comparatively high undiagnosed share (37.0%) despite substantial expenditure indicates that detection reflects health-system factors beyond spending alone.</p>
+      </div>
+      <div class="ins">
+        <div class="tag">Finding 04 · expenditure mismatch</div>
+        <h4>Spending runs inverse to burden</h4>
+        <p>Diabetes-related expenditure per person ranged from ≈US$79 (Pakistan) to ≈US$10,497 (United States), inversely related to prevalence and to the diabetes-attributable share of mortality, which was highest in Pakistan (24.8% of deaths in adults 20–79).</p>
+      </div>
+      <div class="ins synth">
+        <div class="tag">Finding 05 · implications for surveillance</div>
+        <h4>Burden concentrates where detection systems are thinnest</h4>
+        <p>Taken together, the concentration of burden in lower-expenditure settings with large undiagnosed fractions underscores the value of standardised registries and routine surveillance for earlier detection and resource prioritisation.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="about">
+    <p class="lead">About this project</p>
+    <p class="deck">Exploratory project: what it is, how it was made, and what it does not claim to be.</p>
+    <div class="about">
+      <div class="card block">
+        <div class="blab">Purpose</div>
+        <p>Developed as an independent analytical exercise inspired by the work of the IDF Epidemiology Team, to demonstrate descriptive epidemiological comparison and interactive data communication using publicly available estimates.</p>
+      </div>
+      <div class="card block">
+        <div class="blab">Methods</div>
+        <ul>
+          <li>Descriptive epidemiological comparison across countries</li>
+          <li>Trend and projection interpretation (2000–2050)</li>
+          <li>Interactive visualisation of published estimates</li>
+        </ul>
+      </div>
+      <div class="card block">
+        <div class="blab">Data source</div>
+        <p>IDF Diabetes Atlas, 11th edition (2025), publicly available country-level exports. Age-standardised estimates for adults aged 20–79, reference year 2024 with projections to 2050. Figures were transcribed from the published estimates; the underlying primary data were not independently reprocessed.</p>
+      </div>
+      <div class="card block">
+        <div class="blab">Build &amp; tools</div>
+        <p>This dashboard was built in HTML, JavaScript, and Chart.js as a single self-contained file. Author's wider analytics toolkit: Power BI, Python, R, and SQL.</p>
+      </div>
+      <div class="card block wide">
+        <div class="blab">Limitations</div>
+        <p>This is an interactive visualisation of published estimates, not an independent reanalysis of primary data. Comparisons cover seven selected countries only and are not globally representative. All figures are published, age-standardised estimates; projections to 2050 depend on the Atlas's underlying modelling assumptions, and some year-to-year shifts reflect changes in national data sources between Atlas editions rather than real-world reversals. The project is not affiliated with or endorsed by the International Diabetes Federation.</p>
+      </div>
+      <div class="card block">
+        <div class="blab">Skills demonstrated</div>
+        <ul>
+          <li>Descriptive epidemiological interpretation</li>
+          <li>Multi-source data structuring and validation</li>
+          <li>Trend and projection analysis</li>
+          <li>Interactive data visualisation</li>
+          <li>Scientific communication</li>
+        </ul>
+      </div>
+      <div class="card block">
+        <div class="blab">Potential applications</div>
+        <div class="chips">
+          <span class="chip">Global surveillance</span>
+          <span class="chip">Burden estimation</span>
+          <span class="chip">Resource prioritisation</span>
+          <span class="chip">Policy communication</span>
+          <span class="chip">Public health reporting</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <b>Global Diabetes Burden Explorer</b> · Prepared by Jamal Alam, M.Sc. Medical Engineering &amp; Analytics · data: IDF Diabetes Atlas, 11th edition (2025).
+</footer>
+
+<script>
+const C = {
+  pakistan:{name:'Pakistan', color:'#d8572a', prev:{2011:7.9,2024:31.4,2050:34.2}, people:{2000:8.79,2011:6.35,2024:34.53,2050:70.19}, undiag:26.9, deaths:226752, deathShare:24.8, spend:79.3, region:'MENA'},
+  usa:{name:'United States', color:'#1a57a0', prev:{2011:9.4,2024:13.7,2050:15.2}, people:{2000:15.28,2011:23.72,2024:38.54,2050:43.03}, undiag:24.8, deaths:363427, deathShare:21.9, spend:10497.4, region:'NAC'},
+  china:{name:'China', color:'#2a9d8f', prev:{2011:8.8,2024:11.9,2050:13.9}, people:{2000:22.56,2011:90.05,2024:147.98,2050:168.29}, undiag:49.7, deaths:755511, deathShare:10.6, spend:1141.2, region:'WP'},
+  india:{name:'India', color:'#e2a23b', prev:{2011:9.0,2024:10.5,2050:12.8}, people:{2000:32.67,2011:61.26,2024:89.83,2050:156.74}, undiag:43.0, deaths:334922, deathShare:5.0, spend:109.5, region:'SEA'},
+  germany:{name:'Germany', color:'#5b6c8f', prev:{2011:5.3,2024:7.8,2050:9.1}, people:{2000:2.60,2011:5.02,2024:6.49,2050:6.08}, undiag:20.4, deaths:62717, deathShare:16.5, spend:6236.9, region:'EUR'},
+  belgium:{name:'Belgium', color:'#8aafd4', prev:{2011:4.8,2024:5.9,2050:6.8}, people:{2000:0.31,2011:0.51,2024:0.64,2050:0.68}, undiag:37.0, deaths:5377, deathShare:11.6, spend:5688.7, region:'EUR'},
+  austria:{name:'Austria', color:'#aab3c0', prev:{2011:6.6,2024:5.4,2050:6.4}, people:{2000:0.23,2011:0.57,2024:0.48,2050:0.51}, undiag:28.5, deaths:4453, deathShare:12.3, spend:6267.7, region:'EUR'}
+};
+const ORDER = ['pakistan','usa','china','india','germany','belgium','austria'];
+const FONT = "'Inter', sans-serif";
+Chart.defaults.font.family = FONT;
+Chart.defaults.color = '#5b6675';
+Chart.defaults.font.size = 12;
+
+const charts = {};
+const built = {};
+
+function byPrev2024(){ return [...ORDER].sort((a,b)=>C[b].prev[2024]-C[a].prev[2024]); }
+function byPeople2024(){ return [...ORDER].sort((a,b)=>C[b].people[2024]-C[a].people[2024]); }
+
+function buildOverview(){
+  const o = byPrev2024();
+  charts.prev = new Chart(document.getElementById('cPrev'), {
+    type:'bar',
+    data:{ labels:o.map(k=>C[k].name), datasets:[{ data:o.map(k=>C[k].prev[2024]), backgroundColor:o.map(k=>C[k].color), borderRadius:4, barThickness:30 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+'% of adults'}} },
+      scales:{ x:{ beginAtZero:true, max:36, grid:{color:'#eef1f5'}, ticks:{callback:v=>v+'%'} }, y:{ grid:{display:false} } } }
+  });
+  const p = byPeople2024();
+  charts.people = new Chart(document.getElementById('cPeople'), {
+    type:'bar',
+    data:{ labels:p.map(k=>C[k].name), datasets:[{ data:p.map(k=>C[k].people[2024]), backgroundColor:p.map(k=>C[k].color), borderRadius:4, barThickness:26 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+'M people'}} },
+      scales:{ x:{ beginAtZero:true, grid:{color:'#eef1f5'}, ticks:{callback:v=>v+'M'} }, y:{ grid:{display:false} } } }
+  });
+}
+
+let trajMetric='people';
+function trajData(metric){
+  const years = metric==='people' ? [2000,2011,2024,2050] : [2011,2024,2050];
+  const ds = ORDER.map(k=>({
+    label:C[k].name, borderColor:C[k].color, backgroundColor:C[k].color,
+    data: years.map(y => (C[k][metric][y]!==undefined ? C[k][metric][y] : null)),
+    borderWidth: k==='pakistan'?3:2, pointRadius: k==='pakistan'?4:3, pointHoverRadius:6, tension:.25, spanGaps:true
+  }));
+  return {years, ds};
+}
+function renderTrajLegend(){
+  document.getElementById('trajLegend').innerHTML = ORDER.map(k=>`<span><i style="background:${C[k].color}"></i>${C[k].name}</span>`).join('');
+}
+function buildTraj(){
+  renderTrajLegend();
+  const {years, ds} = trajData(trajMetric);
+  charts.traj = new Chart(document.getElementById('cTraj'), {
+    type:'line',
+    data:{ labels:years, datasets:ds },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=> c.dataset.label+': '+(trajMetric==='people'? c.parsed.y+'M' : c.parsed.y+'%') } } },
+      scales:{ y:{ beginAtZero:true, grid:{color:'#eef1f5'}, ticks:{callback:v=> trajMetric==='people'? v+'M' : v+'%'} }, x:{ grid:{display:false} } } }
+  });
+}
+function updateTraj(){
+  const {years, ds} = trajData(trajMetric);
+  charts.traj.data.labels = years;
+  charts.traj.data.datasets = ds;
+  charts.traj.options.scales.y.ticks.callback = v=> trajMetric==='people'? v+'M' : v+'%';
+  charts.traj.update();
+  document.getElementById('trajTitle').textContent = trajMetric==='people' ? 'Estimated number of adults (20–79 y) living with diabetes, 2000–2050' : 'Age-standardised diabetes prevalence (adults 20–79 y), 2011–2050';
+  document.getElementById('trajCap').textContent = trajMetric==='people' ? 'Counts in millions. 2050 figures are projections.' : 'Percent of adults 20–79. 2050 figures are projections.';
+}
+document.getElementById('trajCtrl').addEventListener('click', e=>{
+  const b=e.target.closest('.seg'); if(!b) return;
+  document.querySelectorAll('#trajCtrl .seg').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); trajMetric=b.dataset.m; updateTraj();
+});
+
+function buildGaps(){
+  document.getElementById('gapsLegend').innerHTML = ORDER.map(k=>`<span><i style="background:${C[k].color}"></i>${C[k].name}</span>`).join('');
+  const pts = ORDER.map(k=>({
+    label:C[k].name,
+    data:[{x:C[k].spend, y:C[k].undiag, r: Math.max(6, Math.sqrt(C[k].people[2024])*2.4)}],
+    backgroundColor:C[k].color+'cc', borderColor:C[k].color, borderWidth:1
+  }));
+  charts.gaps = new Chart(document.getElementById('cGaps'), {
+    type:'bubble',
+    data:{ datasets:pts },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>{const d=c.raw;return `${c.dataset.label}: ${d.y}% undiagnosed · $${d.x.toLocaleString()}/person`;}}} },
+      scales:{
+        x:{ type:'logarithmic', title:{display:true,text:'Expenditure per person with diabetes (USD, log scale)'}, grid:{color:'#eef1f5'}, ticks:{callback:v=>{const a=[10,100,1000,10000];return a.includes(v)?'$'+v.toLocaleString():'';}} },
+        y:{ title:{display:true,text:'Undiagnosed proportion (%)'}, beginAtZero:true, max:60, grid:{color:'#eef1f5'}, ticks:{callback:v=>v+'%'} }
+      } }
+  });
+}
+
+const selected = new Set(['pakistan','germany','austria','belgium']);
+function renderPills(){
+  document.getElementById('cmpPills').innerHTML = ORDER.map(k=>
+    `<button class="pill ${selected.has(k)?'':'off'}" data-k="${k}"><span class="dot" style="background:${C[k].color}"></span>${C[k].name}</button>`).join('');
+}
+function fmt(n){ return n.toLocaleString('en-US'); }
+function renderCmpTable(){
+  document.getElementById('cmpBody').innerHTML = ORDER.map(k=>{
+    const on=selected.has(k);
+    return `<tr class="${on?'':'dim'}">
+      <td class="country"><span class="cdot" style="background:${C[k].color}"></span>${C[k].name}</td>
+      <td class="num">${C[k].prev[2024].toFixed(1)}%</td>
+      <td class="num">${C[k].people[2024].toFixed(1)}</td>
+      <td class="num">${C[k].undiag.toFixed(1)}%</td>
+      <td class="num">${fmt(C[k].deaths)}</td>
+      <td class="num">${C[k].deathShare.toFixed(1)}%</td>
+      <td class="num">$${fmt(Math.round(C[k].spend))}</td>
+    </tr>`;
+  }).join('');
+}
+function buildCmpChart(){
+  const sel = ORDER.filter(k=>selected.has(k));
+  charts.cmp = new Chart(document.getElementById('cCmp'), {
+    type:'bar',
+    data:{ labels:sel.map(k=>C[k].name), datasets:[
+      { label:'Prevalence', data:sel.map(k=>C[k].prev[2024]), backgroundColor:'#1a57a0', borderRadius:3, barPercentage:.7, categoryPercentage:.7 },
+      { label:'Death share', data:sel.map(k=>C[k].deathShare), backgroundColor:'#d8572a', borderRadius:3, barPercentage:.7, categoryPercentage:.7 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top', labels:{boxWidth:11, boxHeight:11, usePointStyle:false}}, tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}} },
+      scales:{ y:{ beginAtZero:true, grid:{color:'#eef1f5'}, ticks:{callback:v=>v+'%'} }, x:{ grid:{display:false} } } }
+  });
+}
+function updateCmpChart(){
+  const sel = ORDER.filter(k=>selected.has(k));
+  charts.cmp.data.labels = sel.map(k=>C[k].name);
+  charts.cmp.data.datasets[0].data = sel.map(k=>C[k].prev[2024]);
+  charts.cmp.data.datasets[1].data = sel.map(k=>C[k].deathShare);
+  charts.cmp.update();
+}
+document.getElementById('cmpPills').addEventListener('click', e=>{
+  const b=e.target.closest('.pill'); if(!b) return;
+  const k=b.dataset.k;
+  if(selected.has(k)){ if(selected.size>1) selected.delete(k); } else selected.add(k);
+  renderPills(); renderCmpTable(); updateCmpChart();
+});
+
+function ensure(tab){
+  if(built[tab]) { Object.values(charts).forEach(c=>c&&c.resize()); return; }
+  built[tab]=true;
+  if(tab==='overview') buildOverview();
+  if(tab==='trajectory') buildTraj();
+  if(tab==='gaps') buildGaps();
+  if(tab==='compare'){ renderPills(); renderCmpTable(); buildCmpChart(); }
+}
+function goTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  const btn = document.querySelector('.tab[data-t="'+t+'"]');
+  if(btn) btn.classList.add('active');
+  document.getElementById(t).classList.add('active');
+  setTimeout(()=>ensure(t), 40);
+}
+document.getElementById('nav').addEventListener('click', e=>{
+  const b=e.target.closest('.tab'); if(!b) return;
+  goTab(b.dataset.t);
+});
+ensure('overview');
+</script>
+</body>
+</html>
